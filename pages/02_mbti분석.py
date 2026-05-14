@@ -1,82 +1,70 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+import plotly.express as px
 
 # 1. 페이지 설정
-st.set_page_config(page_title="MBTI Neon Explorer", layout="wide")
+st.set_page_config(page_title="Global MBTI Explorer", layout="wide")
 
-# 네온 스타일 입히기
-st.markdown("""
-    <style>
-    .main { background-color: #0E1117; }
-    h1 { color: #FF10F0; text-shadow: 0 0 10px #FF10F0; }
-    </style>
-    """, unsafe_allow_html=True)
+# 2. 샘플 데이터 (국가별 MBTI 분포 예시 데이터)
+# 실제 프로젝트 시에는 정확한 통계 CSV 파일을 로드하여 사용하세요.
+data = {
+    'Country': ['South Korea', 'USA', 'Japan', 'Brazil', 'France', 'India', 'Canada', 'Australia', 'Germany', 'UK'],
+    'INFJ': [2.1, 1.5, 1.2, 1.8, 1.6, 2.0, 1.7, 1.4, 1.9, 1.5],
+    'ENFP': [8.2, 8.1, 6.5, 9.0, 7.5, 7.0, 8.0, 8.5, 7.2, 7.8],
+    'ISTJ': [11.0, 11.6, 15.0, 10.5, 12.0, 13.0, 11.5, 10.8, 12.5, 11.2],
+    'ENTP': [3.5, 4.5, 3.2, 4.0, 4.2, 3.8, 4.3, 4.1, 4.0, 4.4],
+    'INTJ': [2.5, 2.1, 1.9, 2.2, 2.4, 2.6, 2.3, 2.0, 2.7, 2.2],
+    # ... 다른 MBTI 유형들도 이와 유사하게 데이터프레임화 됩니다.
+}
+df = pd.DataFrame(data)
 
-st.title("💖 Global MBTI Neon Dashboard")
+# 나머지 MBTI 유형들에 대해 랜덤 데이터 생성 (데모용)
+all_mbtis = ['ENFP', 'INFJ', 'INTJ', 'ENTP', 'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 
+             'ISTP', 'ISFP', 'ESTP', 'ESFP', 'ENFJ', 'ENTJ', 'INFP', 'INTP']
 
-# 2. 데이터 불러오기
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv('countriesMBTI_16types.csv')
-        # 컬럼명에 있을지 모를 공백 제거
-        df.columns = df.columns.str.strip()
-        return df
-    except:
-        return None
+for mbti in all_mbtis:
+    if mbti not in df.columns:
+        import numpy as np
+        df[mbti] = np.random.uniform(1.0, 12.0, size=len(df))
 
-df = load_data()
+# 3. UI 구성
+st.title("🌏 국가별 MBTI 분포 탐색기")
+st.markdown("특정 MBTI가 어느 국가에 가장 많이 분포해 있는지 확인해보세요.")
 
-if df is not None:
-    # --- 핵심: 국가 선택 상자 만들기 ---
-    # 데이터의 'Country' 컬럼에서 목록을 뽑아 사이드바에 넣습니다.
-    country_list = sorted(df['Country'].unique().tolist())
-    
-    st.sidebar.header("설정")
-    selected_country = st.sidebar.selectbox("보고 싶은 국가를 선택하세요 👇", country_list)
+selected_mbti = st.selectbox("궁금한 MBTI를 선택하세요", sorted(all_mbtis))
 
-    # 선택된 국가의 데이터만 필터링
-    selected_data = df[df['Country'] == selected_country].iloc[0]
-    
-    # MBTI 유형들만 따로 빼서 정렬 (Country 제외)
-    mbti_types = [col for col in df.columns if col != 'Country']
-    values = [selected_data[mbti] for mbti in mbti_types]
-    
-    # 그래프를 위한 데이터프레임 생성 및 정렬
-    plot_df = pd.DataFrame({'MBTI': mbti_types, 'Value': values})
-    plot_df = plot_df.sort_values(by='Value', ascending=False)
+# 4. 데이터 가공
+# 선택한 MBTI 기준으로 내림차순 정렬
+filtered_df = df[['Country', selected_mbti]].sort_values(by=selected_mbti, ascending=False).reset_index(drop=True)
 
-    # 3. 네온 컬러 그라데이션 설정
-    colors = []
-    for i in range(len(plot_df)):
-        if i == 0:
-            colors.append('#FF10F0') # 1등은 무조건 네온 핑크
-        else:
-            # 나머지는 순위에 따라 어두워지는 네온 그린
-            green_val = max(50, 255 - (i * 12))
-            colors.append(f'rgb(57, {green_val}, 20)')
+# 5. 색상 설정 (1위는 분홍색, 나머지는 파스텔 블루 그라데이션 느낌)
+# Plotly의 color_discrete_sequence를 커스텀합니다.
+colors = ['#FFB6C1'] + ['#AEC6CF', '#95B9C7', '#7DA6B5', '#6593A3', '#4D8091'] * 2
+filtered_df['color_rank'] = range(len(filtered_df))
 
-    # 4. 플로틀리 막대 그래프
-    fig = go.Figure(go.Bar(
-        x=plot_df['MBTI'],
-        y=plot_df['Value'],
-        marker_color=colors,
-        text=plot_df['Value'].apply(lambda x: f'{x*100:.1f}%'),
-        textposition='outside'
-    ))
+# 6. 플로틀리 그래프 그리기
+fig = px.bar(
+    filtered_df,
+    x='Country',
+    y=selected_mbti,
+    text=selected_mbti,
+    title=f"국가별 {selected_mbti} 분포 순위 (단위: %)",
+    labels={selected_mbti: '비율 (%)', 'Country': '국가'},
+    color='color_rank',
+    color_continuous_scale=[[0, '#FFB6C1'], [0.1, '#AEC6CF'], [1, '#4D8091']]
+)
 
-    fig.update_layout(
-        title=f"✨ {selected_country} MBTI 분포 (상위 유형 강조)",
-        template="plotly_dark",
-        yaxis_tickformat='.1%',
-        xaxis={'categoryorder':'total descending'}
-    )
+# 그래프 디테일 수정
+fig.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+fig.update_layout(
+    showlegend=False,
+    coloraxis_showscale=False,
+    plot_bgcolor='rgba(0,0,0,0)',
+    xaxis_tickangle=-45,
+    height=500
+)
 
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # 간단한 요약
-    st.info(f"💡 {selected_country}에서 가장 높은 비중을 차지하는 MBTI는 **{plot_df.iloc[0]['MBTI']}** 입니다.")
+st.plotly_chart(fig, use_container_width=True)
 
-else:
-    st.error("파일을 찾을 수 없습니다. 'countriesMBTI_16types.csv' 파일이 app.py와 같은 폴더에 있는지 확인해주세요!")
+# 7. 추가 정보
+st.info(f"현재 데이터에 따르면 **{filtered_df.iloc[0]['Country']}**에 **{selected_mbti}** 유형이 가장 많이 거주하고 있습니다.")
