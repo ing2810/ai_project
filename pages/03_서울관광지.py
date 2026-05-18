@@ -3,49 +3,46 @@ import folium
 from streamlit_folium import st_folium
 
 # 1. 페이지 기본 설정
-st.set_page_config(page_title="외국인들이 좋아하는 서울의 관광지", layout="wide")
+st.set_page_config(page_title="서울 관광지 가이드", layout="wide")
 
-# 2. 흰색 바탕 + 검은색 글씨 + 분홍색 네온 글로우 디자인 적용 (CSS)
+# 2. 디자인 적용 (흰색 바탕 + 검은색 글씨 + 핑크 네온 효과)
 st.markdown("""
     <style>
-    /* 전체 배경을 흰색으로 설정 */
     .stApp {
         background-color: #ffffff;
     }
     
-    /* 검은색 글씨 + 분홍색 네온 광채 효과 (밝은 배경용) */
     .pink-glow-title {
         color: #111111;
-        font-size: 50px;
+        font-size: 45px;
         font-weight: bold;
         text-align: center;
-        text-shadow: 0 0 10px rgba(255, 20, 147, 0.5), 0 0 20px rgba(255, 105, 180, 0.3);
-        padding: 20px;
-        font-family: 'Courier New', Courier, monospace;
+        text-shadow: 0 0 12px rgba(255, 20, 147, 0.4), 0 0 25px rgba(255, 105, 180, 0.2);
+        padding: 25px;
+        font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
     }
     
     .pink-glow-text {
         color: #222222;
-        text-shadow: 0 0 8px rgba(255, 20, 147, 0.4);
+        text-shadow: 0 0 8px rgba(255, 20, 147, 0.3);
         font-size: 20px;
         font-weight: bold;
     }
     
-    /* 정보 창 스타일링 (밝은 배경에 어울리는 부드러운 핑크) */
     .info-box {
         border: 2px solid #ff1493;
         border-radius: 15px;
         padding: 20px;
         background-color: rgba(255, 20, 147, 0.05);
-        box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
+        box-shadow: 0 0 15px rgba(255, 20, 147, 0.15);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. 제목 표시
-st.markdown('<div class="pink-glow-title">SEOUL PINK VIBE TOP 10</div>', unsafe_allow_html=True)
+# 3. 요청하신 한글 타이틀 적용
+st.markdown('<div class="pink-glow-title">외국인들이 좋아하는 서울의 관광지 top10</div>', unsafe_allow_html=True)
 
-# 4. 데이터 (외국인 인기 10대 관광지)
+# 4. 데이터 (지하철 및 놀거리 정보 포함)
 tourist_spots = [
     {"name": "경복궁", "lat": 37.5796, "lon": 126.9770, "info": "🚇3호선 경복궁역 | 🎡한복 입고 광화문 수문장 교대식 관람하기"},
     {"name": "N서울타워", "lat": 37.5512, "lon": 126.9882, "info": "🚇4호선 명동역 | 🎡남산 케이블카 타고 서울 야경 보며 사랑의 자물쇠 걸기"},
@@ -59,44 +56,24 @@ tourist_spots = [
     {"name": "스타필드 별마당도서관", "lat": 37.5121, "lon": 127.0589, "info": "🚇2호선 삼성역 | 🎡거대한 책장 앞에서 사진 찍고 코엑스몰 쇼핑하기"}
 ]
 
-# 5. 레이아웃 (지도와 정보창)
+# 5. 레이아웃
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    # 밝은 배경에 잘 어울리는 기본 지도(OpenStreetMap) 사용
     m = folium.Map(location=[37.5665, 126.9780], zoom_start=11)
-    
     for spot in tourist_spots:
-        # 분홍색 원형 마커
         folium.CircleMarker(
             location=[spot["lat"], spot["lon"]],
-            radius=10,
-            popup=spot["name"],
-            color="#ff1493",
-            fill=True,
-            fill_color="#ff1493",
-            fill_opacity=0.7,
-            tooltip=spot["name"]
+            radius=10, popup=spot["name"], color="#ff1493",
+            fill=True, fill_color="#ff1493", fill_opacity=0.7, tooltip=spot["name"]
         ).add_to(m)
-
-    # 지도 출력 및 클릭 데이터 수집
-    map_data = st_folium(m, width="100%", height=500, key="seoul_map")
+    map_data = st_folium(m, width="100%", height=500, key="seoul_map_final")
 
 with col2:
     st.markdown('<p class="pink-glow-text">📍 장소를 클릭하세요</p>', unsafe_allow_html=True)
-    
-    # 클릭 상태를 확인하는 고정 로직
     if map_data and map_data.get("last_object_clicked"):
-        lat = map_data["last_object_clicked"]["lat"]
-        lon = map_data["last_object_clicked"]["lng"]
-        
-        selected_spot = None
-        # 스트림릿 클라우드 지도 오차를 줄이기 위해 소수점 3자리까지 비교하여 매칭
-        for spot in tourist_spots:
-            if abs(spot["lat"] - lat) < 0.005 and abs(spot["lon"] - lon) < 0.005:
-                selected_spot = spot
-                break
-        
+        lat, lon = map_data["last_object_clicked"]["lat"], map_data["last_object_clicked"]["lng"]
+        selected_spot = next((s for s in tourist_spots if abs(s["lat"] - lat) < 0.005 and abs(s["lon"] - lon) < 0.005), None)
         if selected_spot:
             st.markdown(f"""
             <div class="info-box">
@@ -104,9 +81,7 @@ with col2:
                 <p style="color:#333333; font-size:18px; line-height:1.5;">{selected_spot['info']}</p>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            st.write("지도의 분홍색 마커를 다시 한 번 클릭해 주세요!")
     else:
-        st.write("지도의 분홍색 마커를 클릭하면 요약 정보가 나타납니다!")
+        st.write("지도의 마커를 클릭하면 상세 정보가 나타납니다.")
 
-st.markdown('<div style="text-align:center; color:gray; margin-top:50px;">Enjoy your Seoul Trip with Pink Vibe!</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:gray; margin-top:50px;">Seoul Top 10 Tourist Attractions</div>', unsafe_allow_html=True)
