@@ -5,38 +5,39 @@ from streamlit_folium import st_folium
 # 1. 페이지 기본 설정
 st.set_page_config(page_title="Seoul Pink Guide", layout="wide")
 
-# 2. 분홍색 네온 글로우 디자인 적용 (CSS)
+# 2. 흰색 바탕 + 검은색 글씨 + 분홍색 네온 글로우 디자인 적용 (CSS)
 st.markdown("""
     <style>
-    /* 전체 배경을 어둡게 하여 핑크색이 돋보이게 함 */
+    /* 전체 배경을 흰색으로 설정 */
     .stApp {
-        background-color: #0e1117;
+        background-color: #ffffff;
     }
     
-    /* 흰색 글씨 + 분홍색 네온 광채 효과 */
+    /* 검은색 글씨 + 분홍색 네온 광채 효과 (밝은 배경용) */
     .pink-glow-title {
-        color: white;
+        color: #111111;
         font-size: 50px;
         font-weight: bold;
         text-align: center;
-        text-shadow: 0 0 10px #ff1493, 0 0 20px #ff1493, 0 0 30px #ff69b4;
+        text-shadow: 0 0 10px rgba(255, 20, 147, 0.5), 0 0 20px rgba(255, 105, 180, 0.3);
         padding: 20px;
         font-family: 'Courier New', Courier, monospace;
     }
     
     .pink-glow-text {
-        color: white;
-        text-shadow: 0 0 5px #ff1493, 0 0 10px #ff69b4;
+        color: #222222;
+        text-shadow: 0 0 8px rgba(255, 20, 147, 0.4);
         font-size: 20px;
+        font-weight: bold;
     }
     
-    /* 정보 창 스타일링 */
+    /* 정보 창 스타일링 (밝은 배경에 어울리는 부드러운 핑크) */
     .info-box {
         border: 2px solid #ff1493;
         border-radius: 15px;
         padding: 20px;
-        background-color: rgba(255, 20, 147, 0.1);
-        box-shadow: 0 0 15px #ff1493;
+        background-color: rgba(255, 20, 147, 0.05);
+        box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -62,11 +63,11 @@ tourist_spots = [
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    # 지도 중심 설정 (서울)
-    m = folium.Map(location=[37.5665, 126.9780], zoom_start=11, tiles="CartoDB dark_matter")
+    # 밝은 배경에 잘 어울리는 기본 지도(OpenStreetMap) 사용
+    m = folium.Map(location=[37.5665, 126.9780], zoom_start=11)
     
     for spot in tourist_spots:
-        # 분홍색 원형 마커 사용
+        # 분홍색 원형 마커
         folium.CircleMarker(
             location=[spot["lat"], spot["lon"]],
             radius=10,
@@ -84,8 +85,6 @@ with col1:
 with col2:
     st.markdown('<p class="pink-glow-text">📍 장소를 클릭하세요</p>', unsafe_allow_html=True)
     
-    selected_info = "지도의 분홍색 마커를 클릭하면 요약 정보가 나타납니다!"
-    
     if map_data and map_data.get("last_object_clicked"):
         lat = map_data["last_object_clicked"]["lat"]
         lon = map_data["last_object_clicked"]["lng"]
@@ -93,15 +92,14 @@ with col2:
         # 클릭한 좌표와 일치하는 데이터 찾기
         for spot in tourist_spots:
             if round(spot["lat"], 4) == round(lat, 4):
-                selected_info = spot["info"]
                 st.markdown(f"""
                 <div class="info-box">
-                    <h2 style="color:white; text-shadow: 0 0 10px #ff1493;">{spot['name']}</h2>
-                    <p style="color:white; font-size:18px;">{selected_info}</p>
+                    <h2 style="color:#111111; margin-top:0;">{spot['name']}</h2>
+                    <p style="color:#333333; font-size:18px; line-height:1.5;">{spot['info']}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 break
     else:
-        st.write("마커를 기다리는 중...")
+        st.write("지도의 분홍색 마커를 클릭하면 요약 정보가 나타납니다!")
 
-st.markdown('<div style="text-align:center; color:gray; margin-top:50px;">Enjoy your Seoul Trip with Pink Glow!</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:gray; margin-top:50px;">Enjoy your Seoul Trip with Pink Vibe!</div>', unsafe_allow_html=True)
