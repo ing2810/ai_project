@@ -80,25 +80,32 @@ with col1:
         ).add_to(m)
 
     # 지도 출력 및 클릭 데이터 수집
-    map_data = st_folium(m, width="100%", height=500)
+    map_data = st_folium(m, width="100%", height=500, key="seoul_map")
 
 with col2:
     st.markdown('<p class="pink-glow-text">📍 장소를 클릭하세요</p>', unsafe_allow_html=True)
     
+    # 클릭 상태를 확인하는 고정 로직
     if map_data and map_data.get("last_object_clicked"):
         lat = map_data["last_object_clicked"]["lat"]
         lon = map_data["last_object_clicked"]["lng"]
         
-        # 클릭한 좌표와 일치하는 데이터 찾기
+        selected_spot = None
+        # 스트림릿 클라우드 지도 오차를 줄이기 위해 소수점 3자리까지 비교하여 매칭
         for spot in tourist_spots:
-            if round(spot["lat"], 4) == round(lat, 4):
-                st.markdown(f"""
-                <div class="info-box">
-                    <h2 style="color:#111111; margin-top:0;">{spot['name']}</h2>
-                    <p style="color:#333333; font-size:18px; line-height:1.5;">{spot['info']}</p>
-                </div>
-                """, unsafe_allow_html=True)
+            if abs(spot["lat"] - lat) < 0.005 and abs(spot["lon"] - lon) < 0.005:
+                selected_spot = spot
                 break
+        
+        if selected_spot:
+            st.markdown(f"""
+            <div class="info-box">
+                <h2 style="color:#111111; margin-top:0;">{selected_spot['name']}</h2>
+                <p style="color:#333333; font-size:18px; line-height:1.5;">{selected_spot['info']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.write("지도의 분홍색 마커를 다시 한 번 클릭해 주세요!")
     else:
         st.write("지도의 분홍색 마커를 클릭하면 요약 정보가 나타납니다!")
 
