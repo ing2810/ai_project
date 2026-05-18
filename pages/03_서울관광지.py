@@ -3,7 +3,7 @@ import folium
 from streamlit_folium import st_folium
 
 # 1. 페이지 기본 설정
-st.set_page_config(page_title="Seoul Pink Guide", layout="wide")
+st.set_page_config(page_title="외국인들이 좋아하는 서울의 관광지", layout="wide")
 
 # 2. 흰색 바탕 + 검은색 글씨 + 분홍색 네온 글로우 디자인 적용 (CSS)
 st.markdown("""
