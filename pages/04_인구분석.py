@@ -25,11 +25,14 @@ try:
 except Exception as e:
     st.warning(f"폰트 로드 중 오류 발생: {e}. 기본 폰트를 사용합니다.")
 
-# --- 3. 데이터 로드 및 전처리 ---
+# --- 3. 데이터 로드 및 전처리 (인코딩 에러 해결 보완) ---
 @st.cache_data
 def load_data():
-    # 업로드된 population.csv 파일을 읽어옵니다. (앱과 같은 폴더에 있어야 합니다)
-    df = pd.read_csv("population.csv")
+    # 인코딩 오류 방지를 위해 cp949를 먼저 시도하고, 실패하면 utf-8로 읽습니다.
+    try:
+        df = pd.read_csv("population.csv", encoding='cp949')
+    except Exception:
+        df = pd.read_csv("population.csv", encoding='utf-8')
     
     # '서울특별시' 전체 행 제외하고 구 단위 행정구역만 필터링 (구 코드가 있는 행)
     df = df[df['행정구역'].str.contains('구 \(')]
@@ -41,7 +44,7 @@ def load_data():
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"데이터 파일을 읽을 수 없습니다. 'population.csv' 파일이 같은 경로에 있는지 확인해주세요. 에러: {e}")
+    st.error(f"데이터 파일을 읽을 수 없습니다. 'population.csv' 파일이 앱과 같은 경로에 있는지 확인해주세요. 에러: {e}")
     st.stop()
 
 # --- 4. 제목 스타일링 (분홍색 네온 글로우 효과) ---
@@ -89,21 +92,21 @@ for col in age_columns:
     val = str(gu_data[col]).replace(',', '')
     population_values.append(int(val) if val.isdigit() else 0)
 
-# --- 6. 그래프 그리기 (조건 반영) ---
+# --- 6. 그래프 그리기 ---
 fig, ax = plt.subplots(figsize=(10, 5))
 
-# 조건 4-1: 그래프 바탕색을 연한 하늘색으로 설정
-ax.set_facecolor('#E6F2F7')      # 차트 내부 배경 (Light Sky Blue 계열)
-fig.patch.set_facecolor('#E6F2F7') # 차트 외부 배경
+# 조건: 그래프 바탕색을 연한 하늘색으로 설정
+ax.set_facecolor('#E6F2F7')      
+fig.patch.set_facecolor('#E6F2F7') 
 
-# 조건 4-2: 꺾은선 그래프의 색상을 분홍색(#FF69B4)으로 설정
+# 조건: 꺾은선 그래프의 색상을 분홍색으로 설정
 ax.plot(age_labels, population_values, marker='o', linewidth=3, color='#FF69B4', markersize=8)
 
 # 그래프 디테일 설정
 ax.set_xlabel('연령대 (나이)', fontsize=12, fontweight='bold')
 ax.set_ylabel('인구수 (명)', fontsize=12, fontweight='bold')
 ax.set_title(f"[{selected_gu}] 연령대별 인구 분포", fontsize=14, pad=15)
-ax.grid(True, linestyle='--', alpha=0.5, color='white') # 가독성을 위한 하얀 그리드
+ax.grid(True, linestyle='--', alpha=0.5, color='white') 
 
 # Y축 천단위 콤마 표시
 ax.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
