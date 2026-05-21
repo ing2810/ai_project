@@ -4,3 +4,4 @@ plotly
 streamlit>=1.30.0
 folium>=0.15.0
 streamlit-folium>=0.17.0
+matplotlib>=3.8.0
