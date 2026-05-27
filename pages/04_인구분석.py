@@ -6,22 +6,21 @@ import re
 # --- 1. 스트림릿 페이지 설정 ---
 st.set_page_config(page_title="서울시 연령별 인구 분석", layout="centered")
 
-# --- 2. 데이터 로드 및 전처리 (정밀 수정) ---
+# --- 2. 데이터 로드 및 전처리 ---
 @st.cache_data
 def load_data():
-    # 내부 인코딩 오류 방지를 위해 cp949와 utf-8 순차 시도
     try:
         df = pd.read_csv("population.csv", encoding='cp949')
     except Exception:
         df = pd.read_csv("population.csv", encoding='utf-8')
     
-    # [수정] 공백 불일치 해결: 연속된 공백을 하나로 줄인 후 필터링
+    # 공백 불일치 해결: 연속된 공백을 하나로 줄인 후 필터링
     df['행정구역_정리'] = df['행정구역'].astype(str).apply(lambda x: re.sub(r'\s+', ' ', x))
     
     # '서울특별시'가 포함되면서 '구 (' 형태를 가진 행만 정확히 필터링
     df = df[df['행정구역_정리'].str.contains('서울특별시') & df['행정구역_정리'].str.contains('구 \(')]
     
-    # [수정] 구 이름 깨끗하게 추출 (예: '서울특별시 종로구 (1111000000)' -> '종로구')
+    # 구 이름 깨끗하게 추출
     df['구_이름'] = df['행정구역_정리'].apply(lambda x: x.split()[1] if len(x.split()) > 1 else x)
     
     # 인구수 데이터 숫자형 변환 (문자열 내 따옴표, 쉼표 완벽 제거)
@@ -55,7 +54,6 @@ selected_age = st.selectbox("기준이 될 연령대 선택", age_cols, index=3)
 top10_df = df.sort_values(by=selected_age, ascending=False).head(10)
 
 # --- 5. 그래프를 위한 데이터 재구조화 (Melt) ---
-# Plotly에서 여러 개의 꺾은선을 한 번에 제어하기 위해 가로축(Age)과 세로축(Population) 형태로 변환합니다.
 plot_df = top10_df.melt(
     id_vars=['구_이름'], 
     value_vars=age_cols, 
@@ -64,35 +62,35 @@ plot_df = top10_df.melt(
 )
 
 # --- 6. 인터랙티브 꺾은선 그래프 그리기 ---
-# 요청사항 반영: 가로축(x) = 연령대, 세로축(y) = 인구수, 구분 기준 = 구_이름
 fig = px.line(
     plot_df, 
     x='연령대', 
     y='인구수', 
     color='구_이름',
-    markers=True,  # 선에 데이터 점(마커) 표시
+    markers=True,  
     title=f"👉 '{selected_age}' 인구수 상위 10개 구의 연령별 추이 비교",
     labels={'연령대': '연령대 (Age)', '인구수': '인구수 (Population)', '구_이름': '행정구'},
     template='plotly_white',
-    color_discrete_sequence=px.colors.sequential.RdPu_r # 분홍~보라 톤 계열 색상 배치
+    color_discrete_sequence=px.colors.sequential.RdPu_r 
 )
 
-# 마우스 올렸을 때(Hover) 팝업 레이아웃 및 스타일 세부 설정
+# 마우스 올렸을 때(Hover) 팝업 레이아웃 설정
 fig.update_traces(
     line=dict(width=2.5),
     marker=dict(size=6),
-    hovertemplate="<b>%{color}</b><br>연령대: %{x}<br>인구수: %{y:,}명<extra></extra>" # 콤마 포맷팅 포함 팝업
+    hovertemplate="<b>%{color}</b><br>연령대: %{x}<br>인구수: %{y:,}명<extra></extra>" 
 )
 
-# 그래프 배경색 설정 (요청하신 연한 하늘색 반영)
+# 그래프 배경색 및 레이아웃 설정
 fig.update_layout(
     plot_bgcolor='#E6F2F7',   # 그래프 내부 하늘색
     paper_bgcolor='#E6F2F7',  # 그래프 외부 배경 하늘색
     title_font=dict(size=15, color='#333333'),
     xaxis=dict(showgrid=True, gridcolor='white'),
-    yaxis=dict(showgrid=True, gridcolor='white', tickformat=',d'), # Y축 숫자 콤마 지정
+    yaxis=dict(showgrid=True, gridcolor='white', tickformat=',d'), 
     margin=dict(l=50, r=40, t=60, b=50),
-    legend=dict(backgroundcolor='white', bordercolor='none')
+    # [수정] backgroundcolor -> bgcolor 로 오타를 변경했습니다.
+    legend=dict(bgcolor='white', bordercolor='rgba(0,0,0,0)') 
 )
 
 # 스트림릿 화면에 그래프 렌더링
