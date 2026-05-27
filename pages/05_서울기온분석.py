@@ -1,11 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-
-# 한글 폰트 설정 (스트림릿 클라우드 리눅스 환경 대응 및 로컬 환경 호환)
-plt.rcParams['font.family'] = 'NanumGothic' or 'sans-serif'
-plt.rcParams['axes.unicode_minus'] = False # 마이너스 기호 깨짐 방지
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="서울 기온 역사 데이터 분석", layout="wide")
 
@@ -15,8 +10,6 @@ st.write("1907년부터 2018년까지의 데이터 중, 원하는 월과 일을 
 # 데이터 로드 및 전처리 함수 (캐싱 적용)
 @st.cache_data
 def load_data():
-    # 공공데이터포털 CSV 파일의 한글 인코딩(cp949)을 적용하여 로드합니다.
-    # 만약 cp949로도 에러가 나면 euc-kr을 시도하도록 예외 처리를 추가했습니다.
     try:
         df = pd.read_csv("seoul.csv", encoding="cp949")
     except UnicodeDecodeError:
@@ -25,13 +18,11 @@ def load_data():
         except UnicodeDecodeError:
             df = pd.read_csv("seoul.csv", encoding="utf-8", errors="ignore")
     
-    # 1. 날짜 컬럼의 공백 및 탭 문자 제거 (\t1907-10-01 -> 1907-10-01)
+    # 1. 날짜 컬럼의 공백 및 탭 문자 제거
     df['날짜'] = df['날짜'].astype(str).str.strip()
     
-    # 2. 날짜를 datetime 타입으로 변환 (에러 발생 시 NaT 처리)
+    # 2. 날짜를 datetime 타입으로 변환
     df['날짜'] = pd.to_datetime(df['날짜'], errors='coerce')
-    
-    # 결측치 제거 (날짜가 제대로 변환되지 않은 행)
     df = df.dropna(subset=['날짜'])
     
     # 3. 분석에 필요한 연, 월, 일 컬럼 추가
@@ -39,35 +30,38 @@ def load_data():
     df['월'] = df['날짜'].dt.month
     df['일'] = df['날짜'].dt.day
     
-    # 4. 기온 데이터 숫자형 변환 및 결측치 처리
+    # 4. 기온 데이터 숫자형 변환
     df['최고기온(℃)'] = pd.to_numeric(df['최고기온(℃)'], errors='coerce')
     df['최저기온(℃)'] = pd.to_numeric(df['최저기온(℃)'], errors='coerce')
+    df['평균기온(℃)'] = pd.to_numeric(df['평균기온(℃)'], errors='coerce')
     
     return df
 
 try:
     df = load_data()
 
-    # 사이드바에서 월, 일 선택 UI 구성
-    st.sidebar.header("📅 날짜 선택")
-    selected_month = st.sidebar.selectbox("월(Month)을 선택하세요", sorted(df['월'].unique()), index=9) # 기본값 10월
+    # [수정] 사이드바가 아닌 본문(창 내부)에 가로로 월/일 선택 상자 배치
+    st.markdown("### 📅 조회할 날짜 선택")
+    select_col1, select_col2 = st.columns(2)
     
-    # 선택한 월에 존재하는 일(Day)만 필터링하여 제공
-    available_days = sorted(df[df['월'] == selected_month]['일'].unique())
-    selected_day = st.sidebar.selectbox("일(Day)을 선택하세요", available_days, index=0) # 기본값 1일
+    with select_col1:
+        selected_month = st.selectbox("월(Month)", sorted(df['월'].unique()), index=9) # 기본값 10월
+    
+    with select_col2:
+        available_days = sorted(df[df['월'] == selected_month]['일'].unique())
+        selected_day = st.selectbox("일(Day)", available_days, index=0) # 기본값 1일
 
-    # 사용자가 선택한 월/일 데이터로 필터링
+    # 데이터 필터링
     filtered_df = df[(df['월'] == selected_month) & (df['일'] == selected_day)].sort_values('연도')
 
     if not filtered_df.empty:
         st.subheader(f"📊 {selected_month}월 {selected_day}일의 연도별 기온 변화 추이")
         
-        # 데이터프레임 요약 정보 보여주기
+        # 상단 요약 지표 (Metrics)
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("총 관측 연도 수", f"{len(filtered_df)} 개년")
         with col2:
-            # 최고기온 결측치를 제외하고 계산
             valid_max = filtered_df.dropna(subset=['최고기온(℃)'])
             if not valid_max.empty:
                 max_temp_row = valid_max.loc[valid_max['최고기온(℃)'].idxmax()]
@@ -75,7 +69,6 @@ try:
             else:
                 st.metric("역대 가장 높았던 기온", "데이터 없음")
         with col3:
-            # 최저기온 결측치를 제외하고 계산
             valid_min = filtered_df.dropna(subset=['최저기온(℃)'])
             if not valid_min.empty:
                 min_temp_row = valid_min.loc[valid_min['최저기온(℃)'].idxmin()]
@@ -83,24 +76,54 @@ try:
             else:
                 st.metric("역대 가장 낮았던 기온", "데이터 없음")
 
-        # 꺾은선 그래프 그리기
-        fig, ax = plt.subplots(figsize=(12, 6))
+        # [수정] Plotly를 이용한 마우스 오버(툴팁) 지원 인터랙티브 꺾은선 그래프
+        fig = go.Figure()
+
+        # 최고기온 선 (파스텔 핑크: #FFB7B2)
+        fig.add_trace(go.Scatter(
+            x=filtered_df['연도'],
+            y=filtered_df['최고기온(℃)'],
+            mode='lines+markers',
+            name='최고기온',
+            line=dict(color='#FFB7B2', width=2.5),
+            marker=dict(size=5),
+            # 마우스 올렸을 때 나타날 툴팁 텍스트 커스텀 설정
+            hovertemplate='<b>%{x}년 최고기온</b><br>🌡️ 기온: %{y} ℃<extra></extra>'
+        ))
+
+        # 최저기온 선 (파스텔 블루: #A8DADC)
+        fig.add_trace(go.Scatter(
+            x=filtered_df['연도'],
+            y=filtered_df['최저기온(℃)'],
+            mode='lines+markers',
+            name='최저기온',
+            line=dict(color='#A8DADC', width=2.5),
+            marker=dict(size=5),
+            hovertemplate='<b>%{x}년 최저기온</b><br>❄️ 기온: %{y} ℃<extra></extra>'
+        ))
+
+        # 그래프 레이아웃 및 툴팁 스타일 설정
+        fig.update_layout(
+            title=dict(
+                text=f"Seoul Temperature Trend on {selected_month}/{selected_day} (1907-2018)",
+                x=0.5, y=0.95, xanchor='center', yanchor='top',
+                font=dict(size=16)
+            ),
+            xaxis_title="Year (연도)",
+            yaxis_title="Temperature (기온, ℃)",
+            hovermode="x unified",  # 마우스를 대면 같은 연도의 최고/최저 기온이 동시에 표시됩니다.
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=40, r=40, t=80, b=40)
+        )
         
-        # 요청하신 파스텔 핑크(#FFB7B2)와 파스텔 블루(#A8DADC) 색상 적용
-        ax.plot(filtered_df['연度' if '연度' in filtered_df.columns else '연도'], filtered_df['최고기온(℃)'], marker='o', markersize=4, 
-                color='#FFB7B2', linewidth=2, label='최고기온 (Pastel Pink)')
-        ax.plot(filtered_df['연度' if '연度' in filtered_df.columns else '연도'], filtered_df['최저기온(℃)'], marker='o', markersize=4, 
-                color='#A8DADC', linewidth=2, label='최저기온 (Pastel Blue)')
-        
-        # 그래프 디테일 설정
-        ax.set_title(f"Seoul Temperature Trend on {selected_month}/{selected_day} (1907-2018)", fontsize=14, pad=15)
-        ax.set_xlabel("Year (연도)", fontsize=11)
-        ax.set_ylabel("Temperature (기온, ℃)", fontsize=11)
-        ax.grid(True, linestyle='--', alpha=0.5)
-        ax.legend(loc='best', fontsize=10)
-        
-        # 스트림릿에 그래프 출력
-        st.pyplot(fig)
+        # 격자선(Grid) 추가
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200,200,200,0.3)', tickmode='linear', dtick=10)
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200,200,200,0.3)')
+
+        # 스트림릿 웹 화면에 Plotly 그래프 출력 (화면 너비에 맞춤)
+        st.plotly_chart(fig, use_container_width=True)
         
         # 상세 데이터 테이블 보여주기 익스팬더
         with st.expander("📄 선택한 날짜의 상세 데이터 보기"):
@@ -110,4 +133,4 @@ try:
         st.warning("선택한 날짜에 해당하는 데이터가 존재하지 않습니다.")
 
 except FileNotFoundError:
-    st.error("❌ `seoul.csv` 파일을 찾을 수 없습니다. GitHub 저장소에 `seoul.csv` 파일이 앱 코드와 같은 위치에 있거나 올바른 경로에 있는지 확인해 주세요.")
+    st.error("❌ `seoul.csv` 파일을 찾을 수 없습니다. GitHub 저장소 구성을 다시 확인해 주세요.")
