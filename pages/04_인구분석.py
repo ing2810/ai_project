@@ -1,41 +1,11 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import urllib.request
-import os
-import numpy as np
+import plotly.express as px
 
 # --- 1. 스트림릿 페이지 설정 ---
 st.set_page_config(page_title="서울시 연령별 인구 분석", layout="centered")
 
-# --- 2. 한글 폰트 다운로드 및 절대 경로 설정 (에러 방지 안전장치 추가) ---
-@st.cache_data
-def load_korean_font():
-    font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
-    font_path = os.path.abspath("NanumGothic.ttf")
-    if not os.path.exists(font_path):
-        urllib.request.urlretrieve(font_url, font_path)
-    return font_path
-
-# NameError를 방지하기 위해 font_prop을 전역 변수로 미리 초기화합니다.
-font_prop = None
-
-try:
-    font_p_path = load_korean_font()
-    fm.font_manager.addfont(font_p_path)
-    font_prop = fm.FontProperties(fname=font_p_path)
-    font_name = font_prop.get_name()
-    
-    # Matplotlib 전역 폰트 설정 (폰트 이름 문자열 전달)
-    plt.rc('font', family=font_name)
-    plt.rcParams['axes.unicode_minus'] = False
-except Exception as e:
-    st.warning(f"폰트 설정 중 알림 (기본 시스템 폰트를 사용합니다): {e}")
-    # 로드 실패 시 NameError가 나지 않도록 빈 FontProperties 객체를 할당합니다.
-    font_prop = fm.FontProperties()
-
-# --- 3. 데이터 로드 및 전처리 ---
+# --- 2. 데이터 로드 및 전처리 ---
 @st.cache_data
 def load_data():
     try:
@@ -62,7 +32,7 @@ except Exception as e:
     st.error(f"데이터 파일 처리 중 오류가 발생했습니다. 'population.csv' 파일 경로를 확인해주세요. 에러: {e}")
     st.stop()
 
-# --- 4. 제목 스타일링 (요청: 깔끔한 검은색 글씨 디자인) ---
+# --- 3. 제목 스타일링 (깔끔한 검은색 글씨 디자인) ---
 title_html = """
 <div style="text-align: center; margin-bottom: 25px;">
     <h1 style="color: #000000; font-size: 2.3rem; font-weight: bold; border-bottom: 3px solid #FF69B4; display: inline-block; padding-bottom: 10px; font-family: sans-serif;">
@@ -72,58 +42,45 @@ title_html = """
 """
 st.markdown(title_html, unsafe_allow_html=True)
 
-# --- 5. UI 및 인터랙션 (나이대 선택) ---
-st.write("선택한 연령대의 인구수가 가장 많은 **상위 10개 행정구**의 전체 연령별 추이를 비교합니다.")
+# --- 4. UI 및 인터랙션 (나이대 선택) ---
+st.write("선택한 연령대의 인구수가 가장 많은 **상위 10개 행정구**의 인구수를 비교합니다.")
 selected_age = st.selectbox("기준이 될 연령대 선택", age_cols, index=3) # 기본값 '30~39세'
 
 # 선택한 연령대 기준으로 내림차순 정렬 후 상위 10개 구 추출
 top10_df = df.sort_values(by=selected_age, ascending=False).head(10)
 
-# --- 6. 그래프 그리기 (조건 반영) ---
-fig, ax = plt.subplots(figsize=(11, 6))
+# --- 5. 인터랙션 그래프 그리기 (Plotly 사용) ---
+# 가로축(x): 구_이름, 세로축(y): 선택한 연령대의 인구수(selected_age)
+fig = px.line(
+    top10_df, 
+    x='구_이름', 
+    y=selected_age, 
+    markers=True,  # 꺾은선 점 표시
+    title=f"👉 '{selected_age}' 인구수 상위 10개 구 비교",
+    labels={'구_이름': '행정구 (District)', selected_age: '인구수 (Population)'},
+    template='plotly_white'
+)
 
-# 그래프 바탕 연한 하늘색 설정
-ax.set_facecolor('#E6F2F7')      
-fig.patch.set_facecolor('#E6F2F7') 
+# 요하신 디자인 조건 반영 (연한 하늘색 배경 및 선 스타일)
+fig.update_traces(
+    line=dict(color='#FF69B4', width=3),  # 선 두께 및 메인 핑크 컬러
+    marker=dict(size=8, color='#C71585'), # 마커 크기 및 색상
+    hovertemplate="<b>%{x}</b><br>인구수: %{y:,}명<extra></extra>" # 마우스 올렸을 때 팝업 포맷 (콤마 적용)
+)
 
-# 다중 선 구분을 위한 분홍색 그라데이션 컬러맵 적용
-colors = plt.cm.RdPu(np.linspace(0.4, 0.9, 10))  # 연한 핑크부터 진한 핫핑크까지 10단계 분배
+fig.update_layout(
+    plot_bgcolor='#E6F2F7',   # 그래프 안쪽 영역 연한 하늘색
+    paper_bgcolor='#E6F2F7',  # 그래프 바깥 영역 연한 하늘색
+    title_font=dict(size=16, color='#333333'),
+    xaxis=dict(showgrid=True, gridcolor='white', tickfont=dict(size=12)),
+    yaxis=dict(showgrid=True, gridcolor='white', tickformat=',d'), # Y축 숫자 콤마 표시
+    margin=dict(l=40, r=40, t=60, b=40)
+)
 
-# 상위 10개 구를 그래프에 선으로 추가
-for i, (_, row) in enumerate(top10_df.iterrows()):
-    gu_name = row['구_이름']
-    values = row[age_cols].values
-    
-    # 각 구마다 분홍색 톤의 다른 색상과 서로 다른 마커를 적용하여 가독성을 높입니다.
-    markers = ['o', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D']
-    
-    # 가로축에 age_cols, 세로축에 values를 매핑하여 꺾은선 그래프 생성
-    ax.plot(age_cols, values, marker=markers[i], linewidth=2.5, label=gu_name, color=colors[9-i], markersize=6)
+# 스트림릿에 인터랙티브 그래프 출력
+st.plotly_chart(fig, use_container_width=True)
 
-# 그래프 레이블 및 한글 깨짐 방지 설정
-ax.set_xlabel('연령대', fontproperties=font_prop, fontsize=12, fontweight='bold', labelpad=10)
-ax.set_ylabel('인구수 (명)', fontproperties=font_prop, fontsize=12, fontweight='bold', labelpad=10)
-ax.set_title(f"👉 '{selected_age}' 인구수 상위 10개 구 비교", fontproperties=font_prop, fontsize=14, pad=15, color='#333333')
-
-# 축 텍스트에 한글 폰트 개별 적용 (한글 깨짐 완벽 방지)
-for label in ax.get_xticklabels():
-    label.set_fontproperties(font_prop)
-for label in ax.get_yticklabels():
-    label.set_fontproperties(font_prop)
-
-# 범례(Legend) 표시 및 한글 적용
-legend = ax.legend(loc='upper right', frameon=True, facecolor='white', edgecolor='none')
-for text in legend.get_texts():
-    text.set_fontproperties(font_prop)
-
-# 그리드 및 Y축 콤마 설정
-ax.grid(True, linestyle='--', alpha=0.6, color='white')
-ax.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
-
-# 스트림릿에 그래프 출력
-st.pyplot(fig)
-
-# --- 7. 데이터 테이블 보기 ---
+# --- 6. 데이터 테이블 보기 ---
 with st.expander("순위 데이터 요약 보기 (상위 10개 구)"):
     display_df = top10_df[['구_이름'] + age_cols].copy()
     display_df = display_df.rename(columns={'구_이름': '행정구'}).set_index('행정구')
