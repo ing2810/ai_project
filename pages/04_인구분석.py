@@ -47,56 +47,45 @@ title_html = """
 st.markdown(title_html, unsafe_allow_html=True)
 
 # --- 4. UI 및 인터랙션 (나이대 선택) ---
-st.write("선택한 연령대의 인구수가 가장 많은 **상위 10개 행정구**의 전체 연령별 추이를 비교합니다.")
+st.write("선택한 연령대의 인구수가 가장 많은 **상위 10개 행정구**의 인구 크기를 비교합니다.")
 selected_age = st.selectbox("기준이 될 연령대 선택", age_cols, index=3) # 기본값 '30~39세'
 
 # 선택한 연령대 기준으로 내림차순 정렬 후 상위 10개 구 추출
 top10_df = df.sort_values(by=selected_age, ascending=False).head(10)
 
-# --- 5. 그래프를 위한 데이터 재구조화 (Melt) ---
-plot_df = top10_df.melt(
-    id_vars=['구_이름'], 
-    value_vars=age_cols, 
-    var_name='연령대', 
-    value_name='인구수'
-)
-
-# --- 6. 인터랙티브 꺾은선 그래프 그리기 ---
+# --- 5. 인터랙티브 꺾은선 그래프 그리기 (축 방향 변경) ---
+# [변경 포인트] x축을 '구_이름'으로, y축을 선택한 연령대('selected_age')로 지정했습니다.
 fig = px.line(
-    plot_df, 
-    x='연령대', 
-    y='인구수', 
-    color='구_이름',
-    markers=True,  
-    title=f"👉 '{selected_age}' 인구수 상위 10개 구의 연령별 추이 비교",
-    labels={'연령대': '연령대 (Age)', '인구수': '인구수 (Population)', '구_이름': '행정구'},
-    template='plotly_white',
-    color_discrete_sequence=px.colors.sequential.RdPu_r 
+    top10_df, 
+    x='구_or_이름' if '구_or_이름' in top10_df.columns else '구_이름', 
+    y=selected_age, 
+    markers=True,  # 꺾은선 점 표시
+    title=f"👉 '{selected_age}' 인구수 상위 10개 구 비교",
+    labels={'구_이름': '행정구 (District)', selected_age: '인구수 (Population)'},
+    template='plotly_white'
 )
 
-# 마우스 올렸을 때(Hover) 팝업 레이아웃 설정
+# 그래프 선 및 마커 스타일링, 마우스 오버 팝업 설정
 fig.update_traces(
-    line=dict(width=2.5),
-    marker=dict(size=6),
-    hovertemplate="<b>%{color}</b><br>연령대: %{x}<br>인구수: %{y:,}명<extra></extra>" 
+    line=dict(color='#FF69B4', width=3),  # 선 두께 및 색상 (핫핑크 계열)
+    marker=dict(size=8, color='#C71585'), # 마커 크기 및 색상
+    hovertemplate="<b>%{x}</b><br>선택 연령대: " + selected_age + "<br>인구수: %{y:,}명<extra></extra>" 
 )
 
-# 그래프 배경색 및 레이아웃 설정
+# 그래프 배경색(하늘색) 및 레이아웃 설정
 fig.update_layout(
     plot_bgcolor='#E6F2F7',   # 그래프 내부 하늘색
     paper_bgcolor='#E6F2F7',  # 그래프 외부 배경 하늘색
     title_font=dict(size=15, color='#333333'),
-    xaxis=dict(showgrid=True, gridcolor='white'),
-    yaxis=dict(showgrid=True, gridcolor='white', tickformat=',d'), 
-    margin=dict(l=50, r=40, t=60, b=50),
-    # [수정] backgroundcolor -> bgcolor 로 오타를 변경했습니다.
-    legend=dict(bgcolor='white', bordercolor='rgba(0,0,0,0)') 
+    xaxis=dict(showgrid=True, gridcolor='white', tickfont=dict(size=12)),
+    yaxis=dict(showgrid=True, gridcolor='white', tickformat=',d'), # Y축 콤마 표시
+    margin=dict(l=50, r=40, t=60, b=50)
 )
 
 # 스트림릿 화면에 그래프 렌더링
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 7. 데이터 테이블 보기 ---
+# --- 6. 데이터 테이블 보기 ---
 with st.expander("순위 데이터 요약 보기 (상위 10개 구)"):
     display_df = top10_df[['구_이름'] + age_cols].copy()
     display_df = display_df.rename(columns={'구_이름': '행정구'}).set_index('행정구')
