@@ -9,36 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ----------------------------------------------------
-# [요구사항 수정] 검은색 글씨 + 파스텔 핑크/블루 네온 글로우 타이틀
-# ----------------------------------------------------
-st.markdown(
-    """
-    <style>
-    .neon-title {
-        font-size: 2.6rem;
-        font-weight: 800;
-        color: #000000; /* 글씨색은 명확한 검은색 */
-        text-align: left;
-        padding: 15px 0;
-        display: inline-block;
-        position: relative;
-        letter-spacing: -1px;
-        
-        /* 파스텔 핑크(#FFB7B2)와 파스텔 블루(#B3C5FF)를 혼합한 은은한 네온 효과 */
-        text-shadow: 
-            0 0 4px #ffffff,   /* 글씨가 흐려지지 않게 안쪽은 하얀색 광풍 */
-            0 0 12px #FFB7B2,  /* 중간 레이어: 부드러운 파스텔 핑크 */
-            0 0 22px #B3C5FF,  /* 바깥 레이어: 화사한 파스텔 블루 */
-            0 0 32px #FFB7B2;  /* 최외각 삼중 글로우 효과 */
-    }
-    </style>
-    
-    <h1 class="neon-title">🐾 반려동물 이름 트렌드 분석 대시보드</h1>
-    """,
-    unsafe_allow_html=True
-)
-
+st.title("🐾 반려동물 이름 트렌드 분석 대시보드")
 st.markdown("업로드된 반려동물 이름 데이터를 기반으로 인기 순위와 테마별 통계를 보여줍니다.")
 
 # 2. 데이터 로드 함수 (인코딩 에러 예외처리 완료)
@@ -64,10 +35,10 @@ except FileNotFoundError:
     st.error("📂 'pet_name.csv' 파일을 찾을 수 없습니다. 대시보드 파이썬 파일과 같거나 올바른 경로에 파일을 위치시켜주세요.")
     st.stop()
 
-# 사용자 요청 컬러맵 (많은 쪽이 파스텔 핑크, 적은 쪽이 파스텔 블루)
+# 사용자 요청 컬러맵 (많은 쪽이 핑크, 적은 쪽이 블루)
 pastel_pink_to_blue = ["#B3C5FF", "#FFB7B2"]
 
-# 레이아웃 분할 (왼쪽: 그래프, 오른쪽: 검색창)
+# 레이아웃 분할
 col1, col2 = st.columns([2, 1])
 
 with col1:
