@@ -9,7 +9,36 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🐾 반려동물 이름 트렌드 분석 대시보드")
+# ----------------------------------------------------
+# 타이틀: 검은색 글씨 + 파스텔 핑크/블루 네온 글로우 효과
+# ----------------------------------------------------
+st.markdown(
+    """
+    <style>
+    .neon-title {
+        font-size: 2.6rem;
+        font-weight: 800;
+        color: #000000; /* 글씨색 검은색 */
+        text-align: left;
+        padding: 15px 0;
+        display: inline-block;
+        position: relative;
+        letter-spacing: -1px;
+        
+        /* 파스텔 핑크(#FFB7B2)와 파스텔 블루(#B3C5FF) 네온 효과 */
+        text-shadow: 
+            0 0 4px #ffffff,   
+            0 0 12px #FFB7B2,  
+            0 0 22px #B3C5FF,  
+            0 0 32px #FFB7B2;  
+    }
+    </style>
+    
+    <h1 class="neon-title">🐾 반려동물 이름 트렌드 분석 대시보드</h1>
+    """,
+    unsafe_allow_html=True
+)
+
 st.markdown("업로드된 반려동물 이름 데이터를 기반으로 인기 순위와 테마별 통계를 보여줍니다.")
 
 # 2. 데이터 로드 함수 (인코딩 에러 예외처리 완료)
@@ -35,10 +64,10 @@ except FileNotFoundError:
     st.error("📂 'pet_name.csv' 파일을 찾을 수 없습니다. 대시보드 파이썬 파일과 같거나 올바른 경로에 파일을 위치시켜주세요.")
     st.stop()
 
-# 사용자 요청 컬러맵 (많은 쪽이 핑크, 적은 쪽이 블루)
+# 사용자 요청 컬러맵 (많은 쪽이 파스텔 핑크, 적은 쪽이 파스텔 블루)
 pastel_pink_to_blue = ["#B3C5FF", "#FFB7B2"]
 
-# 레이아웃 분할
+# 레이아웃 분할 (왼쪽: 그래프, 오른쪽: 검색창)
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -67,7 +96,7 @@ with col1:
     st.plotly_chart(fig_top20, use_container_width=True)
 
 with col2:
-    # 요구사항 4: 이름 검색 기능
+    # 요구사항 4: 이름 검색 기능 (퍼센트 노출 로직 제거 버전)
     st.subheader("🔍 우리 아이 이름 순위 검색")
     search_name = st.text_input("반려동물의 이름을 입력하세요 (예: 코코, 만두, 루피)", "").strip()
     
@@ -85,8 +114,8 @@ with col2:
             m1.metric(label="현재 순위", value=f"{rank} 위")
             m2.metric(label="등록 빈도수", value=f"{count} 회")
             
-            percentile = (rank / total_unique) * 100
-            st.info(f"💡 전체 {total_unique:,}개의 고유 이름 중 상위 **{percentile:.2f}%**에 해당합니다.")
+            # [수정 사항] 복잡하고 큰 모수의 퍼센트 대신 전체 고유 이름 개수 대비 등수로 직관적으로 표현
+            st.info(f"💡 데이터에 등록된 전체 **{total_unique:,}개**의 고유 이름 중 **{rank}위**에 랭크되어 있습니다.")
         else:
             st.error(f"ℹ️ **'{search_name}'**(은)는 현재 파일에 등록되지 않은 아주 개성 넘치는 이름입니다!")
 
